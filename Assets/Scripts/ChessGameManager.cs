@@ -15,16 +15,16 @@ public class ChessGameManager : MonoBehaviour
     [SerializeField] private Color enemyColor = Color.red;
 
     private GameObject[,] gridArray;
+    private ChessPiece[,] pieces;
     private ChessPiece selectedPiece;
-
     private PieceTeam currentTurn = PieceTeam.Player;
-
     private bool gameOver;
     private string resultMessage = "";
 
     private void Start()
     {
         gridArray = new GameObject[boardSize, boardSize];
+        pieces = new ChessPiece[boardSize, boardSize];
 
         GenerateChessBoard();
         SpawnInitialPieces();
@@ -53,7 +53,6 @@ public class ChessGameManager : MonoBehaviour
             for (int y = 0; y < boardSize; y++)
             {
                 Vector3 tilePosition = new Vector3(x, y, 0f);
-
                 GameObject newTile = Instantiate(
                     tilePrefab,
                     tilePosition,
@@ -82,39 +81,81 @@ public class ChessGameManager : MonoBehaviour
 
     private void SpawnInitialPieces()
     {
-        Vector3 blueStartPosition = new Vector3(0f, 0f, -1f);
-
-        CreatePiece(
-            "Blue_King",
+        SpawnTeamFormation(
             PieceTeam.Player,
-            blueStartPosition,
-            playerColor
+            0,
+            1,
+            playerColor,
+            "Blue"
         );
 
-        Vector3 redStartPosition = new Vector3(
+        SpawnTeamFormation(
+            PieceTeam.Enemy,
             boardSize - 1,
-            boardSize - 1,
-            -1f
+            boardSize - 2,
+            enemyColor,
+            "Red"
+        );
+    }
+
+    private void SpawnTeamFormation(
+        PieceTeam team,
+        int backRow,
+        int pawnRow,
+        Color color,
+        string teamName
+    )
+    {
+        CreatePiece(
+            $"{teamName}_Rook_Left",
+            team,
+            PieceType.Rook,
+            new Vector2Int(0, backRow),
+            color
         );
 
         CreatePiece(
-            "Red_King",
-            PieceTeam.Enemy,
-            redStartPosition,
-            enemyColor
+            $"{teamName}_King",
+            team,
+            PieceType.King,
+            new Vector2Int(boardSize / 2, backRow),
+            color
         );
+
+        CreatePiece(
+            $"{teamName}_Rook_Right",
+            team,
+            PieceType.Rook,
+            new Vector2Int(boardSize - 1, backRow),
+            color
+        );
+
+        int centerColumn = boardSize / 2;
+
+        for (int x = centerColumn - 1; x <= centerColumn + 1; x++)
+        {
+            CreatePiece(
+                $"{teamName}_Pawn_{x}",
+                team,
+                PieceType.Pawn,
+                new Vector2Int(x, pawnRow),
+                color
+            );
+        }
     }
 
     private ChessPiece CreatePiece(
         string pieceName,
         PieceTeam team,
-        Vector3 position,
+        PieceType type,
+        Vector2Int boardPosition,
         Color color
     )
     {
+        Vector3 worldPosition = BoardToWorld(boardPosition);
         GameObject newPieceObject = Instantiate(
             piecePrefab,
-            position,
+            worldPosition,
             Quaternion.identity
         );
 
@@ -128,7 +169,8 @@ public class ChessGameManager : MonoBehaviour
             newPiece = newPieceObject.AddComponent<ChessPiece>();
         }
 
-        newPiece.Initialize(team, color);
+        newPiece.Initialize(team, type, boardPosition, color);
+        pieces[boardPosition.x, boardPosition.y] = newPiece;
 
         return newPiece;
     }
@@ -141,16 +183,13 @@ public class ChessGameManager : MonoBehaviour
         }
 
         Vector2 screenPosition = Mouse.current.position.ReadValue();
-
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(
             new Vector3(screenPosition.x, screenPosition.y, 0f)
         );
 
         Collider2D[] clickedColliders =
             Physics2D.OverlapPointAll(worldPosition);
-
-        ChessPiece clickedPiece =
-            FindClickedPiece(clickedColliders);
+        ChessPiece clickedPiece = FindClickedPiece(clickedColliders);
 
         if (clickedPiece != null)
         {
@@ -158,18 +197,19 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
-        GameObject clickedTile =
-            FindClickedTile(clickedColliders);
+        GameObject clickedTile = FindClickedTile(clickedColliders);
 
         if (clickedTile != null && selectedPiece != null)
         {
-            MoveSelectedPiece(clickedTile.transform.position);
+            Vector2Int targetPosition = WorldToBoard(
+                clickedTile.transform.position
+            );
+
+            TryMoveSelectedPiece(targetPosition);
         }
     }
 
-    private ChessPiece FindClickedPiece(
-        Collider2D[] clickedColliders
-    )
+    private ChessPiece FindClickedPiece(Collider2D[] clickedColliders)
     {
         foreach (Collider2D clickedCollider in clickedColliders)
         {
@@ -185,9 +225,7 @@ public class ChessGameManager : MonoBehaviour
         return null;
     }
 
-    private GameObject FindClickedTile(
-        Collider2D[] clickedColliders
-    )
+    private GameObject FindClickedTile(Collider2D[] clickedColliders)
     {
         foreach (Collider2D clickedCollider in clickedColliders)
         {
@@ -208,10 +246,9 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
-        if (selectedPiece != null &&
-            clickedPiece.Team != currentTurn)
+        if (selectedPiece != null)
         {
-            CapturePiece(clickedPiece);
+            TryMoveSelectedPiece(clickedPiece.BoardPosition);
         }
     }
 
@@ -223,49 +260,141 @@ public class ChessGameManager : MonoBehaviour
         }
 
         selectedPiece = piece;
-
         selectedPiece.transform.localScale =
             new Vector3(1.2f, 1.2f, 1f);
     }
 
-    private void MoveSelectedPiece(Vector3 targetPosition)
+    private void TryMoveSelectedPiece(Vector2Int targetPosition)
     {
-        if (selectedPiece == null)
+        if (selectedPiece == null || !IsInsideBoard(targetPosition))
         {
             return;
         }
 
-        targetPosition.z = selectedPiece.transform.position.z;
-        selectedPiece.transform.position = targetPosition;
+        ChessPiece targetPiece = pieces[targetPosition.x, targetPosition.y];
 
-        ClearSelection();
-        SwitchTurn();
+        if (!IsLegalMove(selectedPiece, targetPosition, targetPiece))
+        {
+            Debug.Log("Illegal move.");
+            return;
+        }
+
+        MovePiece(selectedPiece, targetPosition, targetPiece);
     }
 
-    private void CapturePiece(ChessPiece capturedPiece)
+    private bool IsLegalMove(
+        ChessPiece piece,
+        Vector2Int targetPosition,
+        ChessPiece targetPiece
+    )
     {
-        if (selectedPiece == null)
+        if (targetPosition == piece.BoardPosition)
         {
-            return;
+            return false;
         }
 
-        if (capturedPiece.Team == selectedPiece.Team)
+        if (targetPiece != null && targetPiece.Team == piece.Team)
         {
-            return;
+            return false;
         }
 
-        Vector3 targetPosition = capturedPiece.transform.position;
-        targetPosition.z = selectedPiece.transform.position.z;
+        Vector2Int movement = targetPosition - piece.BoardPosition;
 
+        switch (piece.Type)
+        {
+            case PieceType.King:
+                return IsLegalKingMove(movement);
+            case PieceType.Pawn:
+                return IsLegalPawnMove(piece, movement, targetPiece);
+            case PieceType.Rook:
+                return IsLegalRookMove(piece.BoardPosition, targetPosition);
+            default:
+                return false;
+        }
+    }
+
+    private bool IsLegalKingMove(Vector2Int movement)
+    {
+        return Mathf.Abs(movement.x) <= 1 &&
+               Mathf.Abs(movement.y) <= 1;
+    }
+
+    private bool IsLegalPawnMove(
+        ChessPiece piece,
+        Vector2Int movement,
+        ChessPiece targetPiece
+    )
+    {
+        int forwardDirection =
+            piece.Team == PieceTeam.Player ? 1 : -1;
+
+        if (targetPiece == null)
+        {
+            return movement.x == 0 &&
+                   movement.y == forwardDirection;
+        }
+
+        return Mathf.Abs(movement.x) == 1 &&
+               movement.y == forwardDirection;
+    }
+
+    private bool IsLegalRookMove(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        bool movesInStraightLine =
+            startPosition.x == targetPosition.x ||
+            startPosition.y == targetPosition.y;
+
+        return movesInStraightLine &&
+               IsPathClear(startPosition, targetPosition);
+    }
+
+    private bool IsPathClear(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int direction = new Vector2Int(
+            System.Math.Sign(targetPosition.x - startPosition.x),
+            System.Math.Sign(targetPosition.y - startPosition.y)
+        );
+
+        Vector2Int currentPosition = startPosition + direction;
+
+        while (currentPosition != targetPosition)
+        {
+            if (pieces[currentPosition.x, currentPosition.y] != null)
+            {
+                return false;
+            }
+
+            currentPosition += direction;
+        }
+
+        return true;
+    }
+
+    private void MovePiece(
+        ChessPiece movingPiece,
+        Vector2Int targetPosition,
+        ChessPiece capturedPiece
+    )
+    {
+        Vector2Int startPosition = movingPiece.BoardPosition;
         bool capturedKing =
-            capturedPiece.gameObject.name.Contains("King");
+            capturedPiece != null && capturedPiece.Type == PieceType.King;
+        PieceTeam attackingTeam = movingPiece.Team;
 
-        PieceTeam attackingTeam = selectedPiece.Team;
+        if (capturedPiece != null)
+        {
+            Destroy(capturedPiece.gameObject);
+        }
 
-        Destroy(capturedPiece.gameObject);
-
-        selectedPiece.transform.position = targetPosition;
-
+        pieces[startPosition.x, startPosition.y] = null;
+        pieces[targetPosition.x, targetPosition.y] = movingPiece;
+        movingPiece.MoveTo(targetPosition, BoardToWorld(targetPosition));
         ClearSelection();
 
         if (capturedKing)
@@ -278,42 +407,51 @@ public class ChessGameManager : MonoBehaviour
         }
     }
 
+    private Vector3 BoardToWorld(Vector2Int boardPosition)
+    {
+        return new Vector3(boardPosition.x, boardPosition.y, -1f);
+    }
+
+    private Vector2Int WorldToBoard(Vector3 worldPosition)
+    {
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPosition.x),
+            Mathf.RoundToInt(worldPosition.y)
+        );
+    }
+
+    private bool IsInsideBoard(Vector2Int boardPosition)
+    {
+        return boardPosition.x >= 0 &&
+               boardPosition.x < boardSize &&
+               boardPosition.y >= 0 &&
+               boardPosition.y < boardSize;
+    }
+
     private void SwitchTurn()
     {
-        if (currentTurn == PieceTeam.Player)
-        {
-            currentTurn = PieceTeam.Enemy;
-        }
-        else
-        {
-            currentTurn = PieceTeam.Player;
-        }
+        currentTurn =
+            currentTurn == PieceTeam.Player
+                ? PieceTeam.Enemy
+                : PieceTeam.Player;
 
         Debug.Log(GetTurnMessage());
     }
 
     private string GetTurnMessage()
     {
-        if (currentTurn == PieceTeam.Player)
-        {
-            return "Blue Turn";
-        }
-
-        return "Red Turn";
+        return currentTurn == PieceTeam.Player
+            ? "Blue Turn"
+            : "Red Turn";
     }
 
     private void EndGame(PieceTeam winningTeam)
     {
         gameOver = true;
-
-        if (winningTeam == PieceTeam.Player)
-        {
-            resultMessage = "BLUE WINS!";
-        }
-        else
-        {
-            resultMessage = "RED WINS!";
-        }
+        resultMessage =
+            winningTeam == PieceTeam.Player
+                ? "BLUE WINS!"
+                : "RED WINS!";
 
         Debug.Log(resultMessage);
     }
@@ -348,27 +486,11 @@ public class ChessGameManager : MonoBehaviour
             fontStyle = FontStyle.Bold
         };
 
-        if (currentTurn == PieceTeam.Player)
-        {
-            turnStyle.normal.textColor = Color.cyan;
-        }
-        else
-        {
-            turnStyle.normal.textColor = Color.red;
-        }
+        turnStyle.normal.textColor =
+            currentTurn == PieceTeam.Player ? Color.cyan : Color.red;
 
-        Rect turnArea = new Rect(
-            0f,
-            15f,
-            Screen.width,
-            50f
-        );
-
-        GUI.Label(
-            turnArea,
-            GetTurnMessage().ToUpper(),
-            turnStyle
-        );
+        Rect turnArea = new Rect(0f, 15f, Screen.width, 50f);
+        GUI.Label(turnArea, GetTurnMessage().ToUpper(), turnStyle);
     }
 
     private void DrawResultMessage()
