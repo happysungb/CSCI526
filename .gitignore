@@ -8,6 +8,7 @@
 /[Mm]emoryCaptures/
 
 .vs/
+.vscode/
 .gradle/
 
 *.csproj
