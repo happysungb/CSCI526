@@ -305,6 +305,7 @@ MonoBehaviour:
   boardSize: 8
   playerColor: {r: 0, g: 0, b: 1, a: 1}
   enemyColor: {r: 1, g: 0, b: 0, a: 1}
+  validMoveHighlightColor: {r: 0.9372549, g: 1, b: 0, a: 1}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0

@@ -14,7 +14,12 @@ public class ChessGameManager : MonoBehaviour
     [SerializeField] private Color playerColor = Color.blue;
     [SerializeField] private Color enemyColor = Color.red;
 
+    [Header("Move Highlight")]
+    [SerializeField]
+    private Color validMoveHighlightColor = new Color(239f / 255f, 1f, 0f, 1f);
+
     private GameObject[,] gridArray;
+    private Color[,] originalTileColors;
     private ChessPiece[,] pieces;
     private ChessPiece selectedPiece;
     private PieceTeam currentTurn = PieceTeam.Player;
@@ -25,7 +30,7 @@ public class ChessGameManager : MonoBehaviour
     {
         gridArray = new GameObject[boardSize, boardSize];
         pieces = new ChessPiece[boardSize, boardSize];
-
+        originalTileColors = new Color[boardSize, boardSize];
         GenerateChessBoard();
         SpawnInitialPieces();
     }
@@ -68,10 +73,13 @@ public class ChessGameManager : MonoBehaviour
 
                 if (tileRenderer != null)
                 {
-                    tileRenderer.color =
+                    Color tileColor =
                         (x + y) % 2 == 0
                             ? darkTileColor
                             : Color.white;
+
+                    tileRenderer.color = tileColor;
+                    originalTileColors[x, y] = tileColor;
                 }
 
                 gridArray[x, y] = newTile;
@@ -262,6 +270,55 @@ public class ChessGameManager : MonoBehaviour
         selectedPiece = piece;
         selectedPiece.transform.localScale =
             new Vector3(1.2f, 1.2f, 1f);
+        HighlightValidMoves(selectedPiece);
+    }
+
+    private void HighlightValidMoves(ChessPiece piece)
+    {
+        ClearMoveHighlights();
+
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                Vector2Int targetPosition = new Vector2Int(x, y);
+                ChessPiece targetPiece = pieces[x, y];
+
+                if (IsLegalMove(piece, targetPosition, targetPiece))
+                {
+                    SpriteRenderer tileRenderer =
+                        gridArray[x, y].GetComponent<SpriteRenderer>();
+
+                    if (tileRenderer != null)
+                    {
+                        Color baseColor = originalTileColors[x, y];
+
+                        tileRenderer.color = Color.Lerp(
+                            baseColor,
+                            validMoveHighlightColor,
+                            0.4f
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    private void ClearMoveHighlights()
+    {
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                SpriteRenderer tileRenderer =
+                    gridArray[x, y].GetComponent<SpriteRenderer>();
+
+                if (tileRenderer != null)
+                {
+                    tileRenderer.color = originalTileColors[x, y];
+                }
+            }
+        }
     }
 
     private void TryMoveSelectedPiece(Vector2Int targetPosition)
@@ -380,7 +437,7 @@ public class ChessGameManager : MonoBehaviour
 
         return true;
     }
-    
+
     private bool IsPathClear(
         Vector2Int startPosition,
         Vector2Int targetPosition
@@ -488,6 +545,8 @@ public class ChessGameManager : MonoBehaviour
 
     private void ClearSelection()
     {
+        ClearMoveHighlights();
+
         if (selectedPiece == null)
         {
             return;
