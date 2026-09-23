@@ -348,9 +348,39 @@ public class ChessGameManager : MonoBehaviour
             startPosition.y == targetPosition.y;
 
         return movesInStraightLine &&
-               IsPathClear(startPosition, targetPosition);
+            CanRookTraverseWithOneJump(startPosition, targetPosition);
     }
+    private bool CanRookTraverseWithOneJump(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int direction = new Vector2Int(
+            System.Math.Sign(targetPosition.x - startPosition.x),
+            System.Math.Sign(targetPosition.y - startPosition.y)
+        );
 
+        Vector2Int currentPosition = startPosition + direction;
+        int blockingPieceCount = 0;
+
+        while (currentPosition != targetPosition)
+        {
+            if (pieces[currentPosition.x, currentPosition.y] != null)
+            {
+                blockingPieceCount++;
+
+                if (blockingPieceCount > 1)
+                {
+                    return false;
+                }
+            }
+
+            currentPosition += direction;
+        }
+
+        return true;
+    }
+    
     private bool IsPathClear(
         Vector2Int startPosition,
         Vector2Int targetPosition
