@@ -9,7 +9,10 @@ public enum PieceTeam
 public enum PieceType
 {
     King,
+    Queen,
     Rook,
+    Bishop,
+    Knight,
     Pawn
 }
 
@@ -89,8 +92,14 @@ public class ChessPiece : MonoBehaviour
         {
             case PieceType.King:
                 return "K";
+            case PieceType.Queen:
+                return "Q";
             case PieceType.Rook:
                 return "R";
+            case PieceType.Bishop:
+                return "B";
+            case PieceType.Knight:
+                return "N";
             default:
                 return "P";
         }

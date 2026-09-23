@@ -361,10 +361,25 @@ public class ChessGameManager : MonoBehaviour
         {
             case PieceType.King:
                 return IsLegalKingMove(movement);
-            case PieceType.Pawn:
-                return IsLegalPawnMove(piece, movement, targetPiece);
+
+            case PieceType.Queen:
+                // TODO: Implement Queen movement
+                return false;
+
             case PieceType.Rook:
                 return IsLegalRookMove(piece.BoardPosition, targetPosition);
+
+            case PieceType.Bishop:
+                // TODO: Implement Bishop movement
+                return false;
+
+            case PieceType.Knight:
+                // TODO: Implement Knight movement
+                return false;
+
+            case PieceType.Pawn:
+                return IsLegalPawnMove(piece, movement, targetPiece);
+
             default:
                 return false;
         }
