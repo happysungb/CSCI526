@@ -306,6 +306,20 @@ MonoBehaviour:
   playerColor: {r: 0, g: 0, b: 1, a: 1}
   enemyColor: {r: 1, g: 0, b: 0, a: 1}
   validMoveHighlightColor: {r: 0.9372549, g: 1, b: 0, a: 1}
+  basePatternColor: {r: 0.2, g: 0.65, b: 1, a: 1}
+  ownedPatternColor: {r: 0.2, g: 1, b: 0.65, a: 1}
+  pendingPatternColor: {r: 1, g: 0.75, b: 0.1, a: 1}
+  movementPatternColor: {r: 0.15, g: 0.7, b: 1, a: 1}
+  attackPatternColor: {r: 1, g: 0.25, b: 0.2, a: 1}
+  jumpPatternColor: {r: 0.8, g: 0.35, b: 1, a: 1}
+  jumpArrowColor: {r: 0.25, g: 1, b: 0.75, a: 1}
+  movementArrowColor: {r: 0.02, g: 0.1, b: 0.35, a: 1}
+  attackArrowColor: {r: 0.85, g: 0.05, b: 0.08, a: 1}
+  startingMoney: 20
+  singleSquareCost: 1
+  infiniteRangeCost: 4
+  pawnDoubleStepCost: 2
+  jumpRookCost: 3
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
