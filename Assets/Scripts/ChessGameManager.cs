@@ -2230,7 +2230,11 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
-        CustomizationChangeType type = CustomizationChangeType.MoveCell;
+        CustomizationChangeType type = isPawn
+            ? (isAttack
+                ? CustomizationChangeType.AttackCell
+                : CustomizationChangeType.MoveCell)
+            : CustomizationChangeType.MoveCell;
 
         PendingCustomizationChange pending =
             FindPendingPawnCellChange(direction);
@@ -2297,7 +2301,9 @@ public class ChessGameManager : MonoBehaviour
 
         if (isPawn)
         {
-            type = CustomizationChangeType.InfiniteMove;
+            type = isAttack
+                ? CustomizationChangeType.InfiniteAttack
+                : CustomizationChangeType.InfiniteMove;
         }
 
         PendingCustomizationChange pending =
@@ -2543,20 +2549,12 @@ public class ChessGameManager : MonoBehaviour
         switch (change.Type)
         {
             case CustomizationChangeType.MoveCell:
-                configuration.AddMoveOffset(change.Direction);
-                configuration.AddAttackOffset(change.Direction);
-                break;
-
             case CustomizationChangeType.AttackCell:
                 configuration.AddMoveOffset(change.Direction);
                 configuration.AddAttackOffset(change.Direction);
                 break;
 
             case CustomizationChangeType.InfiniteMove:
-                configuration.AddInfiniteMoveDirection(change.Direction);
-                configuration.AddInfiniteAttackDirection(change.Direction);
-                break;
-
             case CustomizationChangeType.InfiniteAttack:
                 configuration.AddInfiniteMoveDirection(change.Direction);
                 configuration.AddInfiniteAttackDirection(change.Direction);
