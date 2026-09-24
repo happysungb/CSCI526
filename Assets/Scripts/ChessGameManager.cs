@@ -123,10 +123,50 @@ public class ChessGameManager : MonoBehaviour
         );
 
         CreatePiece(
+            $"{teamName}_Knight_Left",
+            team,
+            PieceType.Knight,
+            new Vector2Int(1, backRow),
+            color
+        );
+
+        CreatePiece(
+            $"{teamName}_Bishop_Left",
+            team,
+            PieceType.Bishop,
+            new Vector2Int(2, backRow),
+            color
+        );
+
+        CreatePiece(
+            $"{teamName}_Queen",
+            team,
+            PieceType.Queen,
+            new Vector2Int(3, backRow),
+            color
+        );
+
+        CreatePiece(
             $"{teamName}_King",
             team,
             PieceType.King,
             new Vector2Int(boardSize / 2, backRow),
+            color
+        );
+
+        CreatePiece(
+            $"{teamName}_Bishop_Right",
+            team,
+            PieceType.Bishop,
+            new Vector2Int(5, backRow),
+            color
+        );
+
+        CreatePiece(
+            $"{teamName}_Knight_Right",
+            team,
+            PieceType.Knight,
+            new Vector2Int(6, backRow),
             color
         );
 
@@ -363,19 +403,22 @@ public class ChessGameManager : MonoBehaviour
                 return IsLegalKingMove(movement);
 
             case PieceType.Queen:
-                // TODO: Implement Queen movement
-                return false;
+                return IsLegalQueenMove(
+                    piece.BoardPosition,
+                    targetPosition
+                );
 
             case PieceType.Rook:
                 return IsLegalRookMove(piece.BoardPosition, targetPosition);
 
             case PieceType.Bishop:
-                // TODO: Implement Bishop movement
-                return false;
+                return IsLegalBishopMove(
+                    piece.BoardPosition,
+                    targetPosition
+                );
 
             case PieceType.Knight:
-                // TODO: Implement Knight movement
-                return false;
+                return IsLegalKnightMove(movement);
 
             case PieceType.Pawn:
                 return IsLegalPawnMove(piece, movement, targetPiece);
@@ -389,6 +432,49 @@ public class ChessGameManager : MonoBehaviour
     {
         return Mathf.Abs(movement.x) <= 1 &&
                Mathf.Abs(movement.y) <= 1;
+    }
+
+    private bool IsLegalQueenMove(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int movement = targetPosition - startPosition;
+
+        bool movesInStraightLine =
+            startPosition.x == targetPosition.x ||
+            startPosition.y == targetPosition.y;
+
+        bool movesDiagonally =
+            Mathf.Abs(movement.x) == Mathf.Abs(movement.y);
+
+        return
+            (movesInStraightLine || movesDiagonally) &&
+            IsPathClear(startPosition, targetPosition);
+    }
+
+    private bool IsLegalBishopMove(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int movement = targetPosition - startPosition;
+
+        bool movesDiagonally =
+            Mathf.Abs(movement.x) == Mathf.Abs(movement.y);
+
+        return movesDiagonally &&
+            IsPathClear(startPosition, targetPosition);
+    }
+
+    private bool IsLegalKnightMove(Vector2Int movement)
+    {
+        int xDistance = Mathf.Abs(movement.x);
+        int yDistance = Mathf.Abs(movement.y);
+
+        return
+            (xDistance == 2 && yDistance == 1) ||
+            (xDistance == 1 && yDistance == 2);
     }
 
     private bool IsLegalPawnMove(
