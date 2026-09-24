@@ -27,7 +27,8 @@ public class ChessGameManager : MonoBehaviour
         InfiniteMove,
         InfiniteAttack,
         PawnDoubleStep,
-        JumpRook
+        JumpRook,
+        CastleSwap
     }
 
     private sealed class PendingCustomizationChange
@@ -110,8 +111,9 @@ public class ChessGameManager : MonoBehaviour
     [SerializeField] private int startingMoney = 20;
     [SerializeField] private int singleSquareCost = 1;
     [SerializeField] private int infiniteRangeCost = 4;
-    [SerializeField] private int pawnDoubleStepCost = 2;
-    [SerializeField] private int jumpRookCost = 3;
+    [SerializeField] private int pawnDoubleStepCost = 1;
+    [SerializeField] private int jumpRookCost = 10;
+    [SerializeField] private int castleSwapCost = 5;
 
     private readonly List<PieceConfiguration> pieceConfigurations =
         new List<PieceConfiguration>();
@@ -867,8 +869,144 @@ public class ChessGameManager : MonoBehaviour
         return true;
     }
 
+    private bool CanCastleSwap(
+        ChessPiece firstPiece,
+        ChessPiece secondPiece
+    )
+    {
+        if (firstPiece == null || secondPiece == null)
+        {
+            return false;
+        }
+
+        if (firstPiece.Team != secondPiece.Team)
+        {
+            return false;
+        }
+
+        ChessPiece king = null;
+        ChessPiece rook = null;
+
+        if (firstPiece.Type == PieceType.King &&
+            secondPiece.Type == PieceType.Rook)
+        {
+            king = firstPiece;
+            rook = secondPiece;
+        }
+        else if (firstPiece.Type == PieceType.Rook &&
+                 secondPiece.Type == PieceType.King)
+        {
+            rook = firstPiece;
+            king = secondPiece;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (!rook.Configuration.HasCastleSwap)
+        {
+            return false;
+        }
+
+        if (king.HasMoved || rook.HasMoved)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void PerformCastleSwap(
+        ChessPiece firstPiece,
+        ChessPiece secondPiece
+    )
+    {
+        if (!CanCastleSwap(firstPiece, secondPiece))
+        {
+            return;
+        }
+
+        Vector2Int firstPosition = firstPiece.BoardPosition;
+        Vector2Int secondPosition = secondPiece.BoardPosition;
+
+        pieces[firstPosition.x, firstPosition.y] = secondPiece;
+        pieces[secondPosition.x, secondPosition.y] = firstPiece;
+
+        firstPiece.MoveTo(
+            secondPosition,
+            BoardToWorld(secondPosition)
+        );
+
+        secondPiece.MoveTo(
+            firstPosition,
+            BoardToWorld(firstPosition)
+        );
+
+        ClearSelection();
+        inspectedPiece = null;
+        SwitchTurn();
+    }
+
+    private void DrawCastleSwapIndicator(ChessPiece selected)
+    {
+        if (selected == null || selected.HasMoved)
+        {
+            return;
+        }
+
+        foreach (ChessPiece candidate in pieces)
+        {
+            if (candidate == null ||
+                candidate == selected ||
+                !CanCastleSwap(selected, candidate))
+            {
+                continue;
+            }
+
+            GameObject indicatorObject =
+                new GameObject("CastleSwapIndicator");
+
+            indicatorObject.transform.SetParent(transform, false);
+            indicatorObject.transform.position = new Vector3(
+                candidate.transform.position.x,
+                candidate.transform.position.y + 0.58f,
+                -3f
+            );
+
+            TextMesh indicator =
+                indicatorObject.AddComponent<TextMesh>();
+
+            indicator.text = "CASTLE";
+            indicator.anchor = TextAnchor.MiddleCenter;
+            indicator.alignment = TextAlignment.Center;
+            indicator.fontSize = 42;
+            indicator.characterSize = 0.075f;
+            indicator.fontStyle = FontStyle.Bold;
+            indicator.color = new Color(1f, 0.75f, 0.1f, 1f);
+
+            MeshRenderer renderer =
+                indicatorObject.GetComponent<MeshRenderer>();
+
+            if (renderer != null)
+            {
+                renderer.sortingOrder = 12;
+            }
+
+            battleEffectObjects.Add(indicatorObject);
+        }
+    }
+
     private void HandlePieceClick(ChessPiece clickedPiece)
     {
+        if (selectedPiece != null &&
+            clickedPiece.Team == selectedPiece.Team &&
+            CanCastleSwap(selectedPiece, clickedPiece))
+        {
+            PerformCastleSwap(selectedPiece, clickedPiece);
+            return;
+        }
+
         if (clickedPiece.Team == currentTurn)
         {
             if (selectedPiece == clickedPiece)
@@ -959,6 +1097,7 @@ public class ChessGameManager : MonoBehaviour
         }
 
         DrawBattleJumpArcs(piece);
+        DrawCastleSwapIndicator(piece);
     }
 
     private bool IsPawnAttackPatternForDisplay(
@@ -1886,6 +2025,16 @@ public class ChessGameManager : MonoBehaviour
                 jumpRookCost,
                 selectedCustomization.HasJumpRook
             );
+
+            GUILayout.Space(12f);
+
+            DrawPendingAbilityButton(
+                "Castle Swap",
+                "Swap positions with an unmoved friendly King.",
+                CustomizationChangeType.CastleSwap,
+                castleSwapCost,
+                selectedCustomization.HasCastleSwap
+            );
         }
     }
 
@@ -2057,14 +2206,7 @@ public class ChessGameManager : MonoBehaviour
     private void TogglePendingCell(Vector2Int direction)
     {
         bool isAttack = customizationTab == CustomizationTab.Attack;
-        CustomizationChangeType type = isAttack
-            ? CustomizationChangeType.AttackCell
-            : CustomizationChangeType.MoveCell;
-
-        if (selectedCustomization.Type != PieceType.Pawn)
-        {
-            type = CustomizationChangeType.MoveCell;
-        }
+        bool isPawn = selectedCustomization.Type == PieceType.Pawn;
 
         if (IsBaseDirection(
                 selectedCustomization.Type,
@@ -2073,16 +2215,14 @@ public class ChessGameManager : MonoBehaviour
                 false
             ))
         {
-            customizationMessage = "That square is already part of the base pattern.";
+            customizationMessage =
+                "That square is already part of the base pattern.";
             return;
         }
 
-        bool isOwned = selectedCustomization.Type != PieceType.Pawn
-            ? selectedCustomization.HasAdditionalMove(direction) ||
-              selectedCustomization.HasAdditionalAttack(direction)
-            : isAttack
-                ? selectedCustomization.HasAdditionalAttack(direction)
-                : selectedCustomization.HasAdditionalMove(direction);
+        bool isOwned =
+            selectedCustomization.HasAdditionalMove(direction) ||
+            selectedCustomization.HasAdditionalAttack(direction);
 
         if (isOwned)
         {
@@ -2090,8 +2230,10 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
+        CustomizationChangeType type = CustomizationChangeType.MoveCell;
+
         PendingCustomizationChange pending =
-            FindPendingChange(type, direction);
+            FindPendingPawnCellChange(direction);
 
         if (pending != null)
         {
@@ -2113,7 +2255,12 @@ public class ChessGameManager : MonoBehaviour
                 singleSquareCost
             )
         );
-        customizationMessage = "Square added to the current changes.";
+
+        customizationMessage =
+            isPawn
+                ? "Movement and attack square added to the current changes."
+                : "Square added to the current changes.";
+
         RefreshCustomizationBoard();
     }
 
@@ -2122,12 +2269,8 @@ public class ChessGameManager : MonoBehaviour
         CustomizationChangeType type
     )
     {
-        bool isAttack = type == CustomizationChangeType.InfiniteAttack;
-
-        if (selectedCustomization.Type != PieceType.Pawn)
-        {
-            type = CustomizationChangeType.InfiniteMove;
-        }
+        bool isAttack = customizationTab == CustomizationTab.Attack;
+        bool isPawn = selectedCustomization.Type == PieceType.Pawn;
 
         if (IsBaseDirection(
                 selectedCustomization.Type,
@@ -2141,21 +2284,24 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
-        bool isOwned = selectedCustomization.Type != PieceType.Pawn
-            ? selectedCustomization.HasInfiniteMove(direction) ||
-              selectedCustomization.HasInfiniteAttack(direction)
-            : isAttack
-                ? selectedCustomization.HasInfiniteAttack(direction)
-                : selectedCustomization.HasInfiniteMove(direction);
+        bool isOwned =
+            selectedCustomization.HasInfiniteMove(direction) ||
+            selectedCustomization.HasInfiniteAttack(direction);
 
         if (isOwned)
         {
-            customizationMessage = "That infinite direction is already owned.";
+            customizationMessage =
+                "That infinite direction is already owned.";
             return;
         }
 
+        if (isPawn)
+        {
+            type = CustomizationChangeType.InfiniteMove;
+        }
+
         PendingCustomizationChange pending =
-            FindPendingChange(type, direction);
+            FindPendingPawnArrowChange(direction);
 
         if (pending != null)
         {
@@ -2177,7 +2323,12 @@ public class ChessGameManager : MonoBehaviour
                 infiniteRangeCost
             )
         );
-        customizationMessage = "Infinite arrow added to the current changes.";
+
+        customizationMessage =
+            isPawn
+                ? "Movement and attack arrow added to the current changes."
+                : "Infinite arrow added to the current changes.";
+
         RefreshCustomizationBoard();
     }
 
@@ -2277,6 +2428,40 @@ public class ChessGameManager : MonoBehaviour
         return null;
     }
 
+    private PendingCustomizationChange FindPendingPawnCellChange(
+        Vector2Int direction
+    )
+    {
+        foreach (PendingCustomizationChange change in pendingChanges)
+        {
+            if (change.Direction == direction &&
+                (change.Type == CustomizationChangeType.MoveCell ||
+                 change.Type == CustomizationChangeType.AttackCell))
+            {
+                return change;
+            }
+        }
+
+        return null;
+    }
+
+    private PendingCustomizationChange FindPendingPawnArrowChange(
+        Vector2Int direction
+    )
+    {
+        foreach (PendingCustomizationChange change in pendingChanges)
+        {
+            if (change.Direction == direction &&
+                (change.Type == CustomizationChangeType.InfiniteMove ||
+                 change.Type == CustomizationChangeType.InfiniteAttack))
+            {
+                return change;
+            }
+        }
+
+        return null;
+    }
+
     private bool HasPendingChange(
         CustomizationChangeType type,
         Vector2Int direction
@@ -2359,31 +2544,33 @@ public class ChessGameManager : MonoBehaviour
         {
             case CustomizationChangeType.MoveCell:
                 configuration.AddMoveOffset(change.Direction);
-
-                if (configuration.Type != PieceType.Pawn)
-                {
-                    configuration.AddAttackOffset(change.Direction);
-                }
-                break;
-            case CustomizationChangeType.AttackCell:
                 configuration.AddAttackOffset(change.Direction);
                 break;
+
+            case CustomizationChangeType.AttackCell:
+                configuration.AddMoveOffset(change.Direction);
+                configuration.AddAttackOffset(change.Direction);
+                break;
+
             case CustomizationChangeType.InfiniteMove:
                 configuration.AddInfiniteMoveDirection(change.Direction);
-
-                if (configuration.Type != PieceType.Pawn)
-                {
-                    configuration.AddInfiniteAttackDirection(change.Direction);
-                }
-                break;
-            case CustomizationChangeType.InfiniteAttack:
                 configuration.AddInfiniteAttackDirection(change.Direction);
                 break;
+
+            case CustomizationChangeType.InfiniteAttack:
+                configuration.AddInfiniteMoveDirection(change.Direction);
+                configuration.AddInfiniteAttackDirection(change.Direction);
+                break;
+
             case CustomizationChangeType.PawnDoubleStep:
                 configuration.UnlockPawnDoubleStep();
                 break;
+
             case CustomizationChangeType.JumpRook:
                 configuration.UnlockJumpRook();
+                break;
+            case CustomizationChangeType.CastleSwap:
+                configuration.UnlockCastleSwap();
                 break;
         }
     }
@@ -2585,35 +2772,47 @@ public class ChessGameManager : MonoBehaviour
 
     private bool IsPendingPreviewPattern(Vector2Int offset)
     {
-        CustomizationChangeType cellType =
-            selectedCustomization.Type != PieceType.Pawn ||
-            customizationTab == CustomizationTab.Movement
-                ? CustomizationChangeType.MoveCell
-                : CustomizationChangeType.AttackCell;
-        CustomizationChangeType infiniteType =
-            selectedCustomization.Type != PieceType.Pawn ||
-            customizationTab == CustomizationTab.Movement
-                ? CustomizationChangeType.InfiniteMove
-                : CustomizationChangeType.InfiniteAttack;
-
-        if (HasPendingChange(cellType, offset))
+        if (selectedCustomization.Type == PieceType.Pawn)
         {
-            return true;
+            if (FindPendingPawnCellChange(offset) != null)
+            {
+                return true;
+            }
+
+            foreach (PendingCustomizationChange change in pendingChanges)
+            {
+                if ((change.Type == CustomizationChangeType.InfiniteMove ||
+                     change.Type == CustomizationChangeType.InfiniteAttack) &&
+                    MatchesInfiniteDirection(offset, change.Direction))
+                {
+                    return true;
+                }
+            }
+
+            if (customizationTab == CustomizationTab.Movement &&
+                HasPendingChange(
+                    CustomizationChangeType.PawnDoubleStep,
+                    Vector2Int.zero
+                ) &&
+                offset == new Vector2Int(0, 2))
+            {
+                return true;
+            }
+
+            return false;
         }
 
-        if (customizationTab == CustomizationTab.Movement &&
-            HasPendingChange(
-                CustomizationChangeType.PawnDoubleStep,
-                Vector2Int.zero
-            ) &&
-            offset == new Vector2Int(0, 2))
+        if (HasPendingChange(
+                CustomizationChangeType.MoveCell,
+                offset
+            ))
         {
             return true;
         }
 
         foreach (PendingCustomizationChange change in pendingChanges)
         {
-            if (change.Type == infiniteType &&
+            if (change.Type == CustomizationChangeType.InfiniteMove &&
                 MatchesInfiniteDirection(offset, change.Direction))
             {
                 return true;
@@ -2680,14 +2879,13 @@ public class ChessGameManager : MonoBehaviour
             );
         }
 
-        CustomizationChangeType pendingType =
-            customizationTab == CustomizationTab.Movement
-                ? CustomizationChangeType.InfiniteMove
-                : CustomizationChangeType.InfiniteAttack;
-
         foreach (PendingCustomizationChange change in pendingChanges)
         {
-            if (change.Type == pendingType)
+            bool isPendingArrow =
+                change.Type == CustomizationChangeType.InfiniteMove ||
+                change.Type == CustomizationChangeType.InfiniteAttack;
+
+            if (isPendingArrow)
             {
                 AddCustomizationArrow(
                     change.Direction,
@@ -3444,6 +3642,13 @@ public class ChessGameManager : MonoBehaviour
             GUILayout.Label("May cross one occupied square.");
         }
 
+        if (configuration.HasCastleSwap)
+        {
+            GUILayout.Label("Ability: Castle Swap");
+            GUILayout.Label(
+                "May swap with an unmoved friendly King if both pieces have never moved."
+            );
+        }
         GUILayout.EndArea();
     }
 

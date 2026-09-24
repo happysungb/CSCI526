@@ -31,6 +31,7 @@ public class PieceConfiguration
     public PieceType Type { get; private set; }
     public bool HasPawnDoubleStep { get; private set; }
     public bool HasJumpRook { get; private set; }
+    public bool HasCastleSwap { get; private set; }
     public bool IsDeployed { get; set; }
 
     public IReadOnlyList<Vector2Int> AdditionalMoveOffsets =>
@@ -48,7 +49,8 @@ public class PieceConfiguration
         infiniteMoveDirections.Count > 0 ||
         infiniteAttackDirections.Count > 0 ||
         HasPawnDoubleStep ||
-        HasJumpRook;
+        HasJumpRook ||
+        HasCastleSwap;
 
     public PieceConfiguration(
         string pieceName,
@@ -121,6 +123,10 @@ public class PieceConfiguration
     public void UnlockJumpRook()
     {
         HasJumpRook = true;
+    }
+    public void UnlockCastleSwap()
+    {
+        HasCastleSwap = true;
     }
 }
 
