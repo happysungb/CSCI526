@@ -672,14 +672,20 @@ public class ChessGameManager : MonoBehaviour
         GUIStyle turnStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = 30,
+            fontSize = 45,
             fontStyle = FontStyle.Bold
         };
 
         turnStyle.normal.textColor =
             currentTurn == PieceTeam.Player ? Color.cyan : Color.red;
 
-        Rect turnArea = new Rect(0f, 15f, Screen.width, 50f);
+        Rect turnArea = new Rect(
+            0f,
+            5f,
+            Screen.width,
+            45f
+        );
+
         GUI.Label(turnArea, GetTurnMessage().ToUpper(), turnStyle);
     }
 
