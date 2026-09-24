@@ -318,8 +318,8 @@ MonoBehaviour:
   startingMoney: 20
   singleSquareCost: 1
   infiniteRangeCost: 4
-  pawnDoubleStepCost: 2
-  jumpRookCost: 3
+  pawnDoubleStepCost: 1
+  jumpRookCost: 10
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0

@@ -144,6 +144,7 @@ public class ChessGameManager : MonoBehaviour
     private bool enemyDeploymentFinished;
     private readonly Texture2D[] arrowCursorTextures =
         new Texture2D[Directions.Length];
+    private GameObject deploymentGhostPiece;
     private int activeCursorDirectionIndex = -1;
     private string centeredAlertMessage = "";
     private float centeredAlertEndTime;
@@ -182,7 +183,7 @@ public class ChessGameManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        ClearDeploymentGhost();
 
         foreach (Texture2D cursorTexture in arrowCursorTextures)
         {
@@ -235,6 +236,115 @@ public class ChessGameManager : MonoBehaviour
         texture.filterMode = FilterMode.Point;
         texture.wrapMode = TextureWrapMode.Clamp;
         return texture;
+    }
+
+    private void SetDeploymentGhost(PieceConfiguration configuration)
+    {
+        ClearDeploymentGhost();
+
+        if (configuration == null || piecePrefab == null)
+        {
+            return;
+        }
+
+        deploymentGhostPiece = Instantiate(
+            piecePrefab,
+            Vector3.zero,
+            Quaternion.identity
+        );
+        deploymentGhostPiece.name = "Deployment_Ghost";
+
+        Collider2D[] ghostColliders =
+            deploymentGhostPiece.GetComponentsInChildren<Collider2D>();
+
+        foreach (Collider2D ghostCollider in ghostColliders)
+        {
+            ghostCollider.enabled = false;
+        }
+
+        ChessPiece ghostChessPiece =
+            deploymentGhostPiece.GetComponent<ChessPiece>();
+
+        if (ghostChessPiece == null)
+        {
+            ghostChessPiece = deploymentGhostPiece.AddComponent<ChessPiece>();
+        }
+
+        Color teamColor =
+            configuration.Team == PieceTeam.Player
+                ? playerColor
+                : enemyColor;
+
+        ghostChessPiece.Initialize(
+            configuration,
+            Vector2Int.zero,
+            teamColor
+        );
+
+        SpriteRenderer[] ghostRenderers =
+            deploymentGhostPiece.GetComponentsInChildren<SpriteRenderer>();
+
+        foreach (SpriteRenderer ghostRenderer in ghostRenderers)
+        {
+            Color ghostColor = ghostRenderer.color;
+            ghostColor.a = 0.72f;
+            ghostRenderer.color = ghostColor;
+            ghostRenderer.sortingOrder = 10;
+        }
+
+        TextMesh[] ghostLabels =
+            deploymentGhostPiece.GetComponentsInChildren<TextMesh>();
+
+        foreach (TextMesh ghostLabel in ghostLabels)
+        {
+            Color labelColor = ghostLabel.color;
+            labelColor.a = 0.9f;
+            ghostLabel.color = labelColor;
+
+            MeshRenderer labelRenderer =
+                ghostLabel.GetComponent<MeshRenderer>();
+
+            if (labelRenderer != null)
+            {
+                labelRenderer.sortingOrder = 11;
+            }
+        }
+
+        deploymentGhostPiece.transform.localScale =
+            new Vector3(0.9f, 0.9f, 1f);
+
+        Cursor.visible = false;
+
+        if (Mouse.current != null)
+        {
+            UpdateDeploymentGhost(Mouse.current.position.ReadValue());
+        }
+    }
+
+    private void UpdateDeploymentGhost(Vector2 screenPosition)
+    {
+        if (deploymentGhostPiece == null || Camera.main == null)
+        {
+            return;
+        }
+
+        Vector3 worldPosition = Camera.main.ScreenToWorldPoint(
+            new Vector3(screenPosition.x, screenPosition.y, 0f)
+        );
+
+        deploymentGhostPiece.transform.position =
+            new Vector3(worldPosition.x, worldPosition.y, -3f);
+    }
+
+    private void ClearDeploymentGhost()
+    {
+        Cursor.visible = true;
+
+        if (deploymentGhostPiece != null)
+        {
+            Destroy(deploymentGhostPiece);
+            deploymentGhostPiece = null;
+        }
     }
 
     private void DrawCursorLine(
@@ -332,6 +442,13 @@ public class ChessGameManager : MonoBehaviour
         );
     }
 
+    private void CancelDeploymentSelection()
+    {
+        selectedDeploymentPiece = null;
+        ClearDeploymentGhost();
+        HighlightDeploymentArea();
+    }
+
     private void Update()
     {
         if (currentPhase == GamePhase.GameOver || Mouse.current == null)
@@ -341,9 +458,23 @@ public class ChessGameManager : MonoBehaviour
 
         Vector2 screenPosition = Mouse.current.position.ReadValue();
 
+        if (currentPhase == GamePhase.Deployment &&
+            deploymentGhostPiece != null)
+        {
+            UpdateDeploymentGhost(screenPosition);
+        }
+
         if (isPlacingInfiniteArrow)
         {
             UpdateDirectionalArrowCursor(screenPosition);
+        }
+
+        // Right-click cancels the currently selected deployment piece.
+        if (currentPhase == GamePhase.Deployment &&
+            Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            CancelDeploymentSelection();
+            return;
         }
 
         if (!Mouse.current.leftButton.wasPressedThisFrame)
@@ -686,6 +817,7 @@ public class ChessGameManager : MonoBehaviour
         }
 
         CreatePiece(selectedDeploymentPiece, targetPosition);
+        ClearDeploymentGhost();
         bool deployedKing =
             selectedDeploymentPiece.Type == PieceType.King;
         selectedDeploymentPiece.IsDeployed = true;
@@ -706,8 +838,7 @@ public class ChessGameManager : MonoBehaviour
         }
 
         deploymentTeam = GetOpposingTeam(deploymentTeam);
-        selectedDeploymentPiece =
-            GetFirstUndeployedPiece(deploymentTeam);
+        selectedDeploymentPiece = null;
         HighlightDeploymentArea();
     }
 
@@ -1426,9 +1557,18 @@ public class ChessGameManager : MonoBehaviour
                 headerText = $"CUSTOMIZATION - {GetTeamName(customizationTeam)}";
                 break;
             case GamePhase.Deployment:
+                PieceTeam displayedDeploymentTeam = deploymentAwaitingFinish
+                    ? deploymentFinishTeam
+                    : deploymentTeam;
+
                 headerText = deploymentAwaitingFinish
-                    ? $"DEPLOYMENT FINISH - {GetTeamName(deploymentFinishTeam)}"
-                    : $"DEPLOYMENT - {GetTeamName(deploymentTeam)}";
+                    ? $"DEPLOYMENT FINISH - {GetTeamName(displayedDeploymentTeam)}"
+                    : $"DEPLOYMENT - {GetTeamName(displayedDeploymentTeam)}";
+
+                headerStyle.normal.textColor =
+                    displayedDeploymentTeam == PieceTeam.Player
+                        ? Color.cyan
+                        : Color.red;
                 break;
             case GamePhase.Battle:
                 headerText = GetTurnMessage().ToUpper();
@@ -3086,8 +3226,8 @@ public class ChessGameManager : MonoBehaviour
         ClearMoveHighlights();
         currentPhase = GamePhase.Deployment;
         deploymentTeam = PieceTeam.Player;
-        selectedDeploymentPiece =
-            GetFirstUndeployedPiece(deploymentTeam);
+        ClearDeploymentGhost();
+        selectedDeploymentPiece = null;
         selectedCustomization = null;
         HighlightDeploymentArea();
         Debug.Log("Deployment phase started. Blue deploys first.");
@@ -3146,6 +3286,7 @@ public class ChessGameManager : MonoBehaviour
                 ))
             {
                 selectedDeploymentPiece = configuration;
+                SetDeploymentGhost(configuration);
                 HighlightDeploymentArea();
             }
 
@@ -3227,6 +3368,7 @@ public class ChessGameManager : MonoBehaviour
             currentPhase = GamePhase.Battle;
             currentTurn = PieceTeam.Player;
             inspectedPiece = null;
+            ClearDeploymentGhost();
             ClearMoveHighlights();
             ClearBattleEffects();
             Debug.Log("Battle phase started. Blue moves first.");
@@ -3235,9 +3377,9 @@ public class ChessGameManager : MonoBehaviour
 
         deploymentAwaitingFinish = false;
         deploymentTeam = GetOpposingTeam(deploymentFinishTeam);
-        selectedDeploymentPiece =
-            GetFirstUndeployedPiece(deploymentTeam);
+        selectedDeploymentPiece = null;
         inspectedPiece = null;
+        ClearDeploymentGhost();
         HighlightDeploymentArea();
     }
 
