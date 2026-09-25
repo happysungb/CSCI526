@@ -16,4 +16,6 @@
 *.suo
 *.tmp
 *.user
-*.userprefs
+*.userprefs.codex_input_compile_stub.cs
+.codex_project_scripts.dll
+.codex_input_compile_stub.cs
