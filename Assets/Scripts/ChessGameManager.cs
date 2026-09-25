@@ -561,6 +561,31 @@ public class ChessGameManager : MonoBehaviour
                 PieceType.Rook
             )
         );
+
+        pieceConfigurations.Add(
+            new PieceConfiguration(
+                $"{teamName} Knight 1",
+                team,
+                PieceType.Knight
+            )
+        );
+
+        pieceConfigurations.Add(
+            new PieceConfiguration(
+                $"{teamName} Bishop 1",
+                team,
+                PieceType.Bishop
+            )
+        );
+
+        pieceConfigurations.Add(
+            new PieceConfiguration(
+                $"{teamName} Queen",
+                team,
+                PieceType.Queen
+            )
+        );
+
         pieceConfigurations.Add(
             new PieceConfiguration(
                 $"{teamName} King",
@@ -568,6 +593,23 @@ public class ChessGameManager : MonoBehaviour
                 PieceType.King
             )
         );
+
+        pieceConfigurations.Add(
+            new PieceConfiguration(
+                $"{teamName} Bishop 2",
+                team,
+                PieceType.Bishop
+            )
+        );
+
+        pieceConfigurations.Add(
+            new PieceConfiguration(
+                $"{teamName} Knight 2",
+                team,
+                PieceType.Knight
+            )
+        );
+
         pieceConfigurations.Add(
             new PieceConfiguration(
                 $"{teamName} Rook 2",
@@ -1798,8 +1840,51 @@ public class ChessGameManager : MonoBehaviour
 
     private void DrawPieceLibrary()
     {
-        Rect panelRect = new Rect(10f, 70f, 220f, Screen.height - 150f);
+        Rect panelRect = new Rect(
+            10f,
+            70f,
+            220f,
+            Screen.height - 150f
+        );
+
         GUI.Box(panelRect, "YOUR PIECES");
+
+        Rect scrollRect = new Rect(
+            panelRect.x + 8f,
+            panelRect.y + 28f,
+            panelRect.width - 16f,
+            panelRect.height - 82f
+        );
+
+        int visiblePieceCount = 0;
+
+        foreach (PieceConfiguration configuration in pieceConfigurations)
+        {
+            if (configuration.Team == customizationTeam &&
+                configuration.Type != PieceType.King)
+            {
+                visiblePieceCount++;
+            }
+        }
+
+        int rowCount = Mathf.CeilToInt(visiblePieceCount / 2f);
+        float contentHeight = Mathf.Max(
+            scrollRect.height,
+            rowCount * 105f + 10f
+        );
+
+        Rect contentRect = new Rect(
+            0f,
+            0f,
+            scrollRect.width - 18f,
+            contentHeight
+        );
+
+        customizationScrollPosition = GUI.BeginScrollView(
+            scrollRect,
+            customizationScrollPosition,
+            contentRect
+        );
 
         int visibleIndex = 0;
 
@@ -1813,13 +1898,17 @@ public class ChessGameManager : MonoBehaviour
 
             int column = visibleIndex % 2;
             int row = visibleIndex / 2;
+
             Rect cardRect = new Rect(
-                panelRect.x + 10f + column * 100f,
-                panelRect.y + 35f + row * 105f,
-                92f,
+                2f + column * 94f,
+                5f + row * 105f,
+                88f,
                 94f
             );
-            bool isSelected = configuration == selectedCustomization;
+
+            bool isSelected =
+                configuration == selectedCustomization;
+
             GUIStyle cardStyle = new GUIStyle(GUI.skin.button)
             {
                 alignment = TextAnchor.LowerCenter,
@@ -1829,14 +1918,25 @@ public class ChessGameManager : MonoBehaviour
                     : FontStyle.Normal
             };
 
-            if (GUI.Button(cardRect, GetShortPieceName(configuration), cardStyle))
+            if (GUI.Button(
+                    cardRect,
+                    GetShortPieceName(configuration),
+                    cardStyle
+                ))
             {
                 SelectCustomizationPiece(configuration);
             }
 
-            DrawPieceImage(cardRect, configuration, isSelected);
+            DrawPieceImage(
+                cardRect,
+                configuration,
+                isSelected
+            );
+
             visibleIndex++;
         }
+
+        GUI.EndScrollView();
 
         Rect finishRect = new Rect(
             panelRect.x + 10f,
@@ -1924,8 +2024,19 @@ public class ChessGameManager : MonoBehaviour
         {
             case PieceType.King:
                 return "K";
+
+            case PieceType.Queen:
+                return "Q";
+
             case PieceType.Rook:
                 return "R";
+
+            case PieceType.Bishop:
+                return "B";
+
+            case PieceType.Knight:
+                return "N";
+
             default:
                 return "P";
         }
@@ -2020,8 +2131,12 @@ public class ChessGameManager : MonoBehaviour
         }
         else
         {
-            DrawArrowShop();
-            GUILayout.Space(18f);
+            if (selectedCustomization.Type != PieceType.Queen)
+            {
+                DrawArrowShop();
+                GUILayout.Space(18f);
+            }
+
             GUILayout.Label("ABILITY", shopTitleStyle);
             DrawAbilityShop();
         }
@@ -2774,9 +2889,30 @@ public class ChessGameManager : MonoBehaviour
                    Mathf.Abs(offset.y) <= 1;
         }
 
+        if (type == PieceType.Queen)
+        {
+            return offset.x == 0 ||
+                   offset.y == 0 ||
+                   Mathf.Abs(offset.x) == Mathf.Abs(offset.y);
+        }
+
         if (type == PieceType.Rook)
         {
             return offset.x == 0 || offset.y == 0;
+        }
+
+        if (type == PieceType.Bishop)
+        {
+            return Mathf.Abs(offset.x) == Mathf.Abs(offset.y);
+        }
+
+        if (type == PieceType.Knight)
+        {
+            int xDistance = Mathf.Abs(offset.x);
+            int yDistance = Mathf.Abs(offset.y);
+
+            return (xDistance == 2 && yDistance == 1) ||
+                   (xDistance == 1 && yDistance == 2);
         }
 
         if (customizationTab == CustomizationTab.Movement)
@@ -2903,25 +3039,57 @@ public class ChessGameManager : MonoBehaviour
     {
         HashSet<Vector2Int> directions = new HashSet<Vector2Int>();
 
-        if (selectedCustomization.Type == PieceType.Rook)
+        if (selectedCustomization.Type == PieceType.Rook ||
+            selectedCustomization.Type == PieceType.Queen)
         {
             AddCustomizationArrow(
                 new Vector2Int(0, 1),
                 GetCurrentArrowColor(),
                 directions
             );
+
             AddCustomizationArrow(
                 new Vector2Int(1, 0),
                 GetCurrentArrowColor(),
                 directions
             );
+
             AddCustomizationArrow(
                 new Vector2Int(0, -1),
                 GetCurrentArrowColor(),
                 directions
             );
+
             AddCustomizationArrow(
                 new Vector2Int(-1, 0),
+                GetCurrentArrowColor(),
+                directions
+            );
+        }
+
+        if (selectedCustomization.Type == PieceType.Bishop ||
+            selectedCustomization.Type == PieceType.Queen)
+        {
+            AddCustomizationArrow(
+                new Vector2Int(1, 1),
+                GetCurrentArrowColor(),
+                directions
+            );
+
+            AddCustomizationArrow(
+                new Vector2Int(1, -1),
+                GetCurrentArrowColor(),
+                directions
+            );
+
+            AddCustomizationArrow(
+                new Vector2Int(-1, -1),
+                GetCurrentArrowColor(),
+                directions
+            );
+
+            AddCustomizationArrow(
+                new Vector2Int(-1, 1),
                 GetCurrentArrowColor(),
                 directions
             );
@@ -3412,9 +3580,25 @@ public class ChessGameManager : MonoBehaviour
         bool isInfinite
     )
     {
+        if (pieceType == PieceType.Queen)
+        {
+            return true;
+        }
+
         if (pieceType == PieceType.Rook)
         {
             return direction.x == 0 || direction.y == 0;
+        }
+
+        if (pieceType == PieceType.Bishop)
+        {
+            return Mathf.Abs(direction.x) == 1 &&
+                   Mathf.Abs(direction.y) == 1;
+        }
+
+        if (pieceType == PieceType.Knight)
+        {
+            return false;
         }
 
         if (pieceType != PieceType.Pawn || isInfinite)
