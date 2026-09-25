@@ -502,6 +502,7 @@ public class ChessGameManager : MonoBehaviour
 
         Camera.main.orthographic = true;
         Camera.main.orthographicSize = 5.6f;
+
         Camera.main.transform.position = new Vector3(
             (boardSize - 1) / 2f,
             (boardSize - 1) / 2f,
@@ -1716,9 +1717,9 @@ public class ChessGameManager : MonoBehaviour
             Screen.height - screenPosition.y
         );
         Rect rightPanel = new Rect(
-            Screen.width - 320f,
+            Screen.width - 230f,
             70f,
-            310f,
+            220f,
             360f
         );
 
@@ -3877,7 +3878,7 @@ public class ChessGameManager : MonoBehaviour
 
         PieceConfiguration configuration = inspectedPiece.Configuration;
         GUILayout.BeginArea(
-            new Rect(Screen.width - 320f, 70f, 310f, 360f),
+            new Rect(Screen.width - 230f, 70f, 220f, 360f),
             GUI.skin.box
         );
 
