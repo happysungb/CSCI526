@@ -1789,7 +1789,7 @@ public class ChessGameManager : MonoBehaviour
         GUIStyle headerStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = 26,
+            fontSize = 36,
             fontStyle = FontStyle.Bold
         };
         headerStyle.normal.textColor = Color.white;
