@@ -152,6 +152,7 @@ public class ChessGameManager : MonoBehaviour
     private float centeredAlertEndTime;
     private string resultMessage = "";
     private Vector2 customizationScrollPosition;
+    private Vector2 deploymentScrollPosition;
     private string customizationMessage =
         "Choose a piece, then click a highlighted board direction.";
 
@@ -1714,7 +1715,6 @@ public class ChessGameManager : MonoBehaviour
             screenPosition.x,
             Screen.height - screenPosition.y
         );
-        Rect leftPanel = new Rect(10f, 70f, 360f, Screen.height - 80f);
         Rect rightPanel = new Rect(
             Screen.width - 320f,
             70f,
@@ -1723,7 +1723,8 @@ public class ChessGameManager : MonoBehaviour
         );
 
         if (currentPhase == GamePhase.Deployment &&
-            leftPanel.Contains(guiPosition))
+            new Rect(10f, 70f, 230f, Screen.height - 150f)
+                .Contains(guiPosition))
         {
             return true;
         }
@@ -3693,6 +3694,44 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
+        Rect scrollRect = new Rect(
+            panelRect.x + 8f,
+            panelRect.y + 28f,
+            panelRect.width - 16f,
+            panelRect.height - 92f
+        );
+
+        int availablePieceCount = 0;
+
+        foreach (PieceConfiguration configuration in pieceConfigurations)
+        {
+            if (configuration.Team == deploymentTeam &&
+                !configuration.IsDeployed &&
+                (configuration.Type != PieceType.King ||
+                 AreAllNonKingPiecesDeployed(deploymentTeam)))
+            {
+                availablePieceCount++;
+            }
+        }
+
+        int rowCount = Mathf.CeilToInt(availablePieceCount / 2f);
+        float contentHeight = Mathf.Max(
+            scrollRect.height,
+            rowCount * 88f + 5f
+        );
+        Rect contentRect = new Rect(
+            0f,
+            0f,
+            scrollRect.width - 18f,
+            contentHeight
+        );
+
+        deploymentScrollPosition = GUI.BeginScrollView(
+            scrollRect,
+            deploymentScrollPosition,
+            contentRect
+        );
+
         int visibleIndex = 0;
 
         foreach (PieceConfiguration configuration in pieceConfigurations)
@@ -3708,9 +3747,9 @@ public class ChessGameManager : MonoBehaviour
             int column = visibleIndex % 2;
             int row = visibleIndex / 2;
             Rect cardRect = new Rect(
-                panelRect.x + 10f + column * 105f,
-                panelRect.y + 35f + row * 88f,
-                98f,
+                2f + column * 94f,
+                5f + row * 88f,
+                88f,
                 80f
             );
             bool isSelected =
@@ -3737,6 +3776,8 @@ public class ChessGameManager : MonoBehaviour
             DrawPieceImage(cardRect, configuration, isSelected);
             visibleIndex++;
         }
+
+        GUI.EndScrollView();
 
         GUIStyle instructionStyle = new GUIStyle(GUI.skin.label)
         {
