@@ -1236,6 +1236,29 @@ public class ChessGameManager : MonoBehaviour
             case PieceType.King:
                 isBasicMove = IsLegalKingMove(movement);
                 break;
+
+            case PieceType.Queen:
+                isBasicMove = IsLegalQueenMove(
+                    piece.BoardPosition,
+                    targetPosition
+                );
+                break;
+
+            case PieceType.Rook:
+                isBasicMove = IsLegalRookMove(piece, targetPosition);
+                break;
+
+            case PieceType.Bishop:
+                isBasicMove = IsLegalBishopMove(
+                    piece.BoardPosition,
+                    targetPosition
+                );
+                break;
+
+            case PieceType.Knight:
+                isBasicMove = IsLegalKnightMove(movement);
+                break;
+
             case PieceType.Pawn:
                 isBasicMove = IsLegalPawnMove(
                     piece,
@@ -1243,9 +1266,7 @@ public class ChessGameManager : MonoBehaviour
                     targetPiece
                 );
                 break;
-            case PieceType.Rook:
-                isBasicMove = IsLegalRookMove(piece, targetPosition);
-                break;
+
             default:
                 isBasicMove = false;
                 break;
@@ -1296,6 +1317,69 @@ public class ChessGameManager : MonoBehaviour
         }
 
         return Mathf.Abs(movement.x) == 1 && forwardDistance == 1;
+    }
+
+    private bool IsLegalQueenMove(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int movement = targetPosition - startPosition;
+
+        bool movesInStraightLine =
+            startPosition.x == targetPosition.x ||
+            startPosition.y == targetPosition.y;
+
+        bool movesDiagonally =
+            Mathf.Abs(movement.x) == Mathf.Abs(movement.y);
+
+        return
+            (movesInStraightLine || movesDiagonally) &&
+            IsPathClear(startPosition, targetPosition);
+    }
+
+    private bool IsLegalBishopMove(
+        Vector2Int startPosition,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int movement = targetPosition - startPosition;
+
+        bool movesDiagonally =
+            Mathf.Abs(movement.x) == Mathf.Abs(movement.y);
+
+        return movesDiagonally &&
+            IsPathClear(startPosition, targetPosition);
+    }
+
+    private bool IsLegalKnightMove(Vector2Int movement)
+    {
+        int xDistance = Mathf.Abs(movement.x);
+        int yDistance = Mathf.Abs(movement.y);
+
+        return
+            (xDistance == 2 && yDistance == 1) ||
+            (xDistance == 1 && yDistance == 2);
+    }
+
+    private bool IsLegalRookMove(
+        ChessPiece piece,
+        Vector2Int targetPosition
+    )
+    {
+        Vector2Int startPosition = piece.BoardPosition;
+        bool movesInStraightLine =
+            startPosition.x == targetPosition.x ||
+            startPosition.y == targetPosition.y;
+
+        if (!movesInStraightLine)
+        {
+            return false;
+        }
+
+        return piece.Configuration.HasJumpRook
+            ? CanRookTraverseWithOneJump(startPosition, targetPosition)
+            : IsPathClear(startPosition, targetPosition);
     }
 
     private bool IsLegalCustomizedPattern(
@@ -1379,26 +1463,6 @@ public class ChessGameManager : MonoBehaviour
         return Mathf.Abs(movement.x) == Mathf.Abs(movement.y) &&
                Math.Sign(movement.x) == direction.x &&
                Math.Sign(movement.y) == direction.y;
-    }
-
-    private bool IsLegalRookMove(
-        ChessPiece piece,
-        Vector2Int targetPosition
-    )
-    {
-        Vector2Int startPosition = piece.BoardPosition;
-        bool movesInStraightLine =
-            startPosition.x == targetPosition.x ||
-            startPosition.y == targetPosition.y;
-
-        if (!movesInStraightLine)
-        {
-            return false;
-        }
-
-        return piece.Configuration.HasJumpRook
-            ? CanRookTraverseWithOneJump(startPosition, targetPosition)
-            : IsPathClear(startPosition, targetPosition);
     }
 
     private bool CanRookTraverseWithOneJump(

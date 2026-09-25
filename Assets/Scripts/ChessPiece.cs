@@ -10,7 +10,10 @@ public enum PieceTeam
 public enum PieceType
 {
     King,
+    Queen,
     Rook,
+    Bishop,
+    Knight,
     Pawn
 }
 
@@ -220,9 +223,23 @@ public class ChessPiece : MonoBehaviour
             case PieceType.King:
                 label = "K";
                 break;
+
+            case PieceType.Queen:
+                label = "Q";
+                break;
+
             case PieceType.Rook:
                 label = "R";
                 break;
+
+            case PieceType.Bishop:
+                label = "B";
+                break;
+
+            case PieceType.Knight:
+                label = "N";
+                break;
+
             default:
                 label = "P";
                 break;
