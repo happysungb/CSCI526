@@ -1825,7 +1825,6 @@ public class ChessGameManager : MonoBehaviour
         foreach (GUIStyleState state in states)
         {
             state.background = normal;
-            state.scaledBackgrounds = null;
             state.textColor = InterfaceInk;
         }
         style.hover.background = hover;
