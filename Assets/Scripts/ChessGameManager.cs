@@ -81,31 +81,30 @@ public class ChessGameManager : MonoBehaviour
     [SerializeField] private int boardSize = 8;
 
     [Header("Piece Colors")]
-    [SerializeField] private Color playerColor = Color.blue;
-    [SerializeField] private Color enemyColor = Color.red;
+    [SerializeField] private Color playerColor = new Color32(68, 117, 232, 255);
+    [SerializeField] private Color enemyColor = new Color32(196, 83, 99, 255);
 
     [Header("Move Highlight")]
     [SerializeField]
-    private Color validMoveHighlightColor =
-        new Color(239f / 255f, 1f, 0f, 1f);
+    private Color validMoveHighlightColor = new Color32(168, 230, 207, 255);
     [SerializeField]
-    private Color basePatternColor = new Color(0.2f, 0.65f, 1f, 1f);
+    private Color basePatternColor = new Color32(168, 230, 207, 255);
     [SerializeField]
-    private Color ownedPatternColor = new Color(0.2f, 1f, 0.65f, 1f);
+    private Color ownedPatternColor = new Color32(112, 204, 170, 255);
     [SerializeField]
-    private Color pendingPatternColor = new Color(1f, 0.75f, 0.1f, 1f);
+    private Color pendingPatternColor = new Color32(242, 188, 87, 255);
     [SerializeField]
-    private Color movementPatternColor = new Color(0.15f, 0.7f, 1f, 1f);
+    private Color movementPatternColor = new Color32(232, 199, 123, 255);
     [SerializeField]
-    private Color attackPatternColor = new Color(1f, 0.25f, 0.2f, 1f);
+    private Color attackPatternColor = new Color32(244, 174, 168, 255);
     [SerializeField]
-    private Color jumpPatternColor = new Color(0.8f, 0.35f, 1f, 1f);
+    private Color jumpPatternColor = new Color32(190, 167, 225, 255);
     [SerializeField]
-    private Color jumpArrowColor = new Color(0.25f, 1f, 0.75f, 1f);
+    private Color jumpArrowColor = new Color32(40, 126, 100, 255);
     [SerializeField]
-    private Color movementArrowColor = new Color(0.02f, 0.1f, 0.35f, 1f);
+    private Color movementArrowColor = new Color32(118, 83, 33, 255);
     [SerializeField]
-    private Color attackArrowColor = new Color(0.85f, 0.05f, 0.08f, 1f);
+    private Color attackArrowColor = new Color32(164, 54, 68, 255);
 
     [Header("Customization Costs")]
     [SerializeField] private int startingMoney = 20;
@@ -186,6 +185,8 @@ public class ChessGameManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        foreach (Texture2D texture in interfaceTextures) Destroy(texture);
+        if (interfaceSkin != null) Destroy(interfaceSkin);
         ClearDeploymentGhost();
 
         foreach (Texture2D cursorTexture in arrowCursorTextures)
@@ -500,6 +501,7 @@ public class ChessGameManager : MonoBehaviour
             return;
         }
 
+        Camera.main.backgroundColor = new Color32(245, 242, 234, 255);
         Camera.main.orthographic = true;
         Camera.main.orthographicSize = 5.6f;
 
@@ -512,7 +514,7 @@ public class ChessGameManager : MonoBehaviour
 
     private void GenerateChessBoard()
     {
-        Color darkTileColor = new Color(0.25f, 0.25f, 0.25f);
+        Color darkTileColor = new Color32(105, 125, 137, 255);
 
         for (int x = 0; x < boardSize; x++)
         {
@@ -537,7 +539,7 @@ public class ChessGameManager : MonoBehaviour
                     Color tileColor =
                         (x + y) % 2 == 0
                             ? darkTileColor
-                            : Color.white;
+                            : new Color32(242, 238, 228, 255);
 
                     tileRenderer.color = tileColor;
                     originalTileColors[x, y] = tileColor;
@@ -1710,21 +1712,45 @@ public class ChessGameManager : MonoBehaviour
                boardPosition.y < boardSize;
     }
 
+    private Rect GetPiecePanelRect(float width)
+    {
+        return GetSidePanelRect(false, width, Screen.height - 150f);
+    }
+
+    private Rect GetSidePanelRect(bool onRight, float width, float height)
+    {
+        const float edgeMargin = 10f;
+        const float preferredGap = 100f;
+        const float borderThickness = 4f;
+        float left = onRight ? Screen.width - edgeMargin - width : edgeMargin;
+
+        if (TryGetBoardScreenRect(out Rect boardRect))
+        {
+            // Reserve the widest panels so both sides and phases share one gap.
+            float availableGap = Mathf.Min(
+                boardRect.xMin - borderThickness - edgeMargin - 230f,
+                Screen.width - boardRect.xMax - borderThickness - edgeMargin - 235f);
+            float gap = Mathf.Clamp(availableGap, 0f, preferredGap);
+            left = onRight
+                ? boardRect.xMax + borderThickness + gap
+                : boardRect.xMin - borderThickness - gap - width;
+            left = Mathf.Clamp(left, edgeMargin,
+                Mathf.Max(edgeMargin, Screen.width - edgeMargin - width));
+        }
+
+        return new Rect(left, 70f, width, height);
+    }
+
     private bool IsPointerOverInterface(Vector2 screenPosition)
     {
         Vector2 guiPosition = new Vector2(
             screenPosition.x,
             Screen.height - screenPosition.y
         );
-        Rect rightPanel = new Rect(
-            Screen.width - 230f,
-            70f,
-            220f,
-            360f
-        );
+        Rect rightPanel = GetSidePanelRect(true, 220f, 360f);
 
         if (currentPhase == GamePhase.Deployment &&
-            new Rect(10f, 70f, 230f, Screen.height - 150f)
+            GetPiecePanelRect(230f)
                 .Contains(guiPosition))
         {
             return true;
@@ -1732,14 +1758,8 @@ public class ChessGameManager : MonoBehaviour
 
         if (currentPhase == GamePhase.Customization)
         {
-            Rect pieceLibrary =
-                new Rect(10f, 70f, 220f, Screen.height - 150f);
-            Rect shop = new Rect(
-                Screen.width - 245f,
-                70f,
-                235f,
-                Screen.height - 150f
-            );
+            Rect pieceLibrary = GetPiecePanelRect(220f);
+            Rect shop = GetSidePanelRect(true, 235f, Screen.height - 150f);
             Rect tabs = new Rect(
                 Screen.width / 2f - 140f,
                 65f,
@@ -1762,28 +1782,147 @@ public class ChessGameManager : MonoBehaviour
         return inspectedPiece != null && rightPanel.Contains(guiPosition);
     }
 
+    // A private skin keeps this palette local to the game's immediate-mode UI.
+    private static readonly Color InterfaceInk = new Color32(36, 50, 75, 255);
+    private GUISkin interfaceSkin;
+    private readonly List<Texture2D> interfaceTextures = new List<Texture2D>();
+
+    private Texture2D CreateInterfaceTexture(Color color)
+    {
+        Texture2D texture = new Texture2D(1, 1);
+        texture.hideFlags = HideFlags.HideAndDontSave;
+        texture.SetPixel(0, 0, color);
+        texture.Apply();
+        interfaceTextures.Add(texture);
+        return texture;
+    }
+
+    private void EnsureInterfaceSkin()
+    {
+        if (interfaceSkin != null) return;
+        interfaceSkin = Instantiate(GUI.skin);
+        interfaceSkin.hideFlags = HideFlags.HideAndDontSave;
+        Texture2D panel = CreateInterfaceTexture(Color.white);
+        Texture2D button = CreateInterfaceTexture(new Color32(235, 236, 231, 255));
+        Texture2D hover = CreateInterfaceTexture(new Color32(221, 225, 216, 255));
+        Texture2D pressed = CreateInterfaceTexture(new Color32(201, 209, 196, 255));
+        StyleInterfaceControl(interfaceSkin.box, panel, panel, panel);
+        StyleInterfaceControl(interfaceSkin.button, button, hover, pressed);
+        StyleInterfaceControl(interfaceSkin.verticalScrollbar,
+            button, button, button);
+        StyleInterfaceControl(interfaceSkin.verticalScrollbarThumb,
+            pressed, hover, pressed);
+        interfaceSkin.label.normal.textColor = InterfaceInk;
+    }
+
+    private void StyleInterfaceControl(
+        GUIStyle style, Texture2D normal, Texture2D hover, Texture2D pressed)
+    {
+        GUIStyleState[] states = {
+            style.normal, style.hover, style.active, style.focused,
+            style.onNormal, style.onHover, style.onActive, style.onFocused
+        };
+        foreach (GUIStyleState state in states)
+        {
+            state.background = normal;
+            state.scaledBackgrounds = null;
+            state.textColor = InterfaceInk;
+        }
+        style.hover.background = hover;
+        style.active.background = pressed;
+        style.onNormal.background = pressed;
+        style.onHover.background = hover;
+        style.onActive.background = pressed;
+        style.border = new RectOffset(0, 0, 0, 0);
+    }
+
     private void OnGUI()
     {
-        DrawPhaseHeader();
-
-        switch (currentPhase)
+        EnsureInterfaceSkin();
+        GUISkin previousSkin = GUI.skin;
+        GUI.skin = interfaceSkin;
+        try
         {
-            case GamePhase.Customization:
-                DrawCustomizationEditor();
-                break;
-            case GamePhase.Deployment:
-                DrawDeploymentPanel();
-                break;
-            case GamePhase.Battle:
-                DrawPieceDetails();
-                break;
-            case GamePhase.GameOver:
-                DrawPieceDetails();
-                DrawResultMessage();
-                break;
+            DrawBoardBorder();
+            DrawPhaseHeader();
+
+            switch (currentPhase)
+            {
+                case GamePhase.Customization:
+                    DrawCustomizationEditor();
+                    break;
+                case GamePhase.Deployment:
+                    DrawDeploymentPanel();
+                    break;
+                case GamePhase.Battle:
+                    DrawPieceDetails();
+                    break;
+                case GamePhase.GameOver:
+                    DrawPieceDetails();
+                    DrawResultMessage();
+                    break;
+            }
+
+            DrawCenteredAlert();
+        }
+        finally
+        {
+            GUI.skin = previousSkin;
+        }
+    }
+
+    private bool TryGetBoardScreenRect(out Rect boardRect)
+    {
+        boardRect = new Rect();
+        Camera boardCamera = Camera.main;
+        if (boardCamera == null || gridArray == null || boardSize <= 0)
+        {
+            return false;
         }
 
-        DrawCenteredAlert();
+        GameObject firstTile = gridArray[0, 0];
+        GameObject lastTile = gridArray[boardSize - 1, boardSize - 1];
+        if (firstTile == null || lastTile == null) return false;
+
+        SpriteRenderer firstRenderer = firstTile.GetComponent<SpriteRenderer>();
+        SpriteRenderer lastRenderer = lastTile.GetComponent<SpriteRenderer>();
+        if (firstRenderer == null || lastRenderer == null) return false;
+
+        Bounds boardBounds = firstRenderer.bounds;
+        boardBounds.Encapsulate(lastRenderer.bounds);
+        Vector3 bottomLeft = boardCamera.WorldToScreenPoint(boardBounds.min);
+        Vector3 topRight = boardCamera.WorldToScreenPoint(boardBounds.max);
+
+        // Share projected bounds between the frame, panels, and pointer hit tests.
+        float left = Mathf.Round(bottomLeft.x);
+        float right = Mathf.Round(topRight.x);
+        float top = Mathf.Round(Screen.height - topRight.y);
+        float bottom = Mathf.Round(Screen.height - bottomLeft.y);
+        boardRect = Rect.MinMaxRect(left, top, right, bottom);
+        return true;
+    }
+
+    private void DrawBoardBorder()
+    {
+        if (Event.current.type != EventType.Repaint ||
+            !TryGetBoardScreenRect(out Rect boardRect)) return;
+
+        float left = boardRect.xMin;
+        float right = boardRect.xMax;
+        float top = boardRect.yMin;
+        float bottom = boardRect.yMax;
+        const float thickness = 4f;
+        Color previousColor = GUI.color;
+        GUI.color = new Color32(70, 88, 101, 255);
+        GUI.DrawTexture(new Rect(left - thickness, top - thickness,
+            right - left + thickness * 2f, thickness), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(left - thickness, bottom,
+            right - left + thickness * 2f, thickness), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(left - thickness, top,
+            thickness, bottom - top), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(right, top,
+            thickness, bottom - top), Texture2D.whiteTexture);
+        GUI.color = previousColor;
     }
 
     private void DrawPhaseHeader()
@@ -1794,7 +1933,7 @@ public class ChessGameManager : MonoBehaviour
             fontSize = 36,
             fontStyle = FontStyle.Bold
         };
-        headerStyle.normal.textColor = Color.white;
+        headerStyle.normal.textColor = InterfaceInk;
 
         string headerText;
 
@@ -1814,15 +1953,15 @@ public class ChessGameManager : MonoBehaviour
 
                 headerStyle.normal.textColor =
                     displayedDeploymentTeam == PieceTeam.Player
-                        ? Color.cyan
-                        : Color.red;
+                        ? playerColor
+                        : enemyColor;
                 break;
             case GamePhase.Battle:
                 headerText = GetTurnMessage().ToUpper();
                 headerStyle.normal.textColor =
                     currentTurn == PieceTeam.Player
-                        ? Color.cyan
-                        : Color.red;
+                        ? playerColor
+                        : enemyColor;
                 break;
             default:
                 headerText = "GAME OVER";
@@ -1842,12 +1981,7 @@ public class ChessGameManager : MonoBehaviour
 
     private void DrawPieceLibrary()
     {
-        Rect panelRect = new Rect(
-            10f,
-            70f,
-            220f,
-            Screen.height - 150f
-        );
+        Rect panelRect = GetPiecePanelRect(220f);
 
         GUI.Box(panelRect, "YOUR PIECES");
 
@@ -1914,7 +2048,7 @@ public class ChessGameManager : MonoBehaviour
             GUIStyle cardStyle = new GUIStyle(GUI.skin.button)
             {
                 alignment = TextAnchor.LowerCenter,
-                fontSize = 12,
+                fontSize = 13,
                 fontStyle = isSelected
                     ? FontStyle.Bold
                     : FontStyle.Normal
@@ -2002,9 +2136,9 @@ public class ChessGameManager : MonoBehaviour
         {
             GUIStyle selectedStyle = new GUIStyle(symbolStyle)
             {
-                fontSize = 10
+                fontSize = 11
             };
-            selectedStyle.normal.textColor = pendingPatternColor;
+            selectedStyle.normal.textColor = new Color32(137, 91, 19, 255);
             GUI.Label(
                 new Rect(cardRect.x, cardRect.y + 2f, cardRect.width, 18f),
                 "SELECTED",
@@ -2090,12 +2224,12 @@ public class ChessGameManager : MonoBehaviour
         };
         Color previousBackgroundColor = GUI.backgroundColor;
         GUI.backgroundColor = isSelected
-            ? new Color(0.72f, 0.76f, 0.86f, 1f)
-            : new Color(0.3f, 0.32f, 0.37f, 1f);
-        tabStyle.normal.textColor = Color.white;
-        tabStyle.hover.textColor = Color.white;
-        tabStyle.active.textColor = Color.white;
-        tabStyle.focused.textColor = Color.white;
+            ? new Color32(234, 223, 196, 255)
+            : Color.white;
+        tabStyle.normal.textColor = InterfaceInk;
+        tabStyle.hover.textColor = InterfaceInk;
+        tabStyle.active.textColor = InterfaceInk;
+        tabStyle.focused.textColor = InterfaceInk;
 
         if (GUI.Button(rect, label, tabStyle) && !isSelected)
         {
@@ -2111,12 +2245,7 @@ public class ChessGameManager : MonoBehaviour
 
     private void DrawCustomizationShop()
     {
-        Rect shopRect = new Rect(
-            Screen.width - 245f,
-            70f,
-            235f,
-            Screen.height - 150f
-        );
+        Rect shopRect = GetSidePanelRect(true, 235f, Screen.height - 150f);
         GUILayout.BeginArea(shopRect, GUI.skin.box);
         GUIStyle shopTitleStyle = new GUIStyle(GUI.skin.label)
         {
@@ -2586,7 +2715,7 @@ public class ChessGameManager : MonoBehaviour
             56f
         );
         Color previousBackgroundColor = GUI.backgroundColor;
-        GUI.backgroundColor = new Color(0.35f, 0.38f, 0.45f, 0.96f);
+        GUI.backgroundColor = new Color32(255, 237, 196, 255);
         GUI.Box(alertRect, "");
         GUIStyle alertStyle = new GUIStyle(GUI.skin.label)
         {
@@ -2594,7 +2723,7 @@ public class ChessGameManager : MonoBehaviour
             fontSize = 18,
             fontStyle = FontStyle.Bold
         };
-        alertStyle.normal.textColor = new Color(1f, 0.88f, 0.45f, 1f);
+        alertStyle.normal.textColor = InterfaceInk;
         GUI.Label(alertRect, centeredAlertMessage, alertStyle);
         GUI.backgroundColor = previousBackgroundColor;
     }
@@ -3681,7 +3810,7 @@ public class ChessGameManager : MonoBehaviour
 
     private void DrawDeploymentPanel()
     {
-        Rect panelRect = new Rect(10f, 70f, 230f, Screen.height - 150f);
+        Rect panelRect = GetPiecePanelRect(230f);
         GUI.Box(
             panelRect,
             deploymentAwaitingFinish
@@ -3878,7 +4007,7 @@ public class ChessGameManager : MonoBehaviour
 
         PieceConfiguration configuration = inspectedPiece.Configuration;
         GUILayout.BeginArea(
-            new Rect(Screen.width - 230f, 70f, 220f, 360f),
+            GetSidePanelRect(true, 220f, 360f),
             GUI.skin.box
         );
 
@@ -3991,7 +4120,7 @@ public class ChessGameManager : MonoBehaviour
             fontSize = 60,
             fontStyle = FontStyle.Bold
         };
-        resultStyle.normal.textColor = Color.yellow;
+        resultStyle.normal.textColor = InterfaceInk;
 
         Rect resultArea = new Rect(
             0f,

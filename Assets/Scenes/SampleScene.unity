@@ -200,7 +200,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0.9607843, g: 0.9490196, b: 0.9176471, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -303,18 +303,18 @@ MonoBehaviour:
   tilePrefab: {fileID: 7714448946212568194, guid: a56caab8431be9a468338acf443ff732, type: 3}
   piecePrefab: {fileID: 2725364429149769772, guid: 958eb32e491f81b4aa43a892d957dd1b, type: 3}
   boardSize: 8
-  playerColor: {r: 0, g: 0, b: 1, a: 1}
-  enemyColor: {r: 1, g: 0, b: 0, a: 1}
-  validMoveHighlightColor: {r: 0.9372549, g: 1, b: 0, a: 1}
-  basePatternColor: {r: 0.2, g: 0.65, b: 1, a: 1}
-  ownedPatternColor: {r: 0.2, g: 1, b: 0.65, a: 1}
-  pendingPatternColor: {r: 1, g: 0.75, b: 0.1, a: 1}
-  movementPatternColor: {r: 0.15, g: 0.7, b: 1, a: 1}
-  attackPatternColor: {r: 1, g: 0.25, b: 0.2, a: 1}
-  jumpPatternColor: {r: 0.8, g: 0.35, b: 1, a: 1}
-  jumpArrowColor: {r: 0.25, g: 1, b: 0.75, a: 1}
-  movementArrowColor: {r: 0.02, g: 0.1, b: 0.35, a: 1}
-  attackArrowColor: {r: 0.85, g: 0.05, b: 0.08, a: 1}
+  playerColor: {r: 0.26666667, g: 0.45882353, b: 0.90980392, a: 1}
+  enemyColor: {r: 0.76862745, g: 0.3254902, b: 0.38823529, a: 1}
+  validMoveHighlightColor: {r: 0.65882353, g: 0.90196078, b: 0.81176471, a: 1}
+  basePatternColor: {r: 0.65882353, g: 0.90196078, b: 0.81176471, a: 1}
+  ownedPatternColor: {r: 0.43921569, g: 0.8, b: 0.66666667, a: 1}
+  pendingPatternColor: {r: 0.94901961, g: 0.7372549, b: 0.34117647, a: 1}
+  movementPatternColor: {r: 0.90980392, g: 0.78039216, b: 0.48235294, a: 1}
+  attackPatternColor: {r: 0.95686275, g: 0.68235294, b: 0.65882353, a: 1}
+  jumpPatternColor: {r: 0.74509804, g: 0.65490196, b: 0.88235294, a: 1}
+  jumpArrowColor: {r: 0.15686275, g: 0.49411765, b: 0.39215686, a: 1}
+  movementArrowColor: {r: 0.4627451, g: 0.3254902, b: 0.12941176, a: 1}
+  attackArrowColor: {r: 0.64313725, g: 0.21176471, b: 0.26666667, a: 1}
   startingMoney: 20
   singleSquareCost: 1
   infiniteRangeCost: 4
